@@ -180,6 +180,10 @@ client-modules: duplicate factory registration for "…" (bundle executed twice 
 4. 设备按 IP 识别：同一 NAT 后的多台设备会合并成一条。
 5. 草稿队列是内存态，重启即丢。
 
+## 开发说明
+
+本项目借助 **DeepSeek-V4.1-Flash** 模型与 **DeepSeek Harness** 智能体环境完成开发。
+
 ## 许可
 
 MIT。二维码使用 [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)（MIT, © 2009 Kazuhiko Arase），已内联到 `lib/vendor/` 并保留版权头。
