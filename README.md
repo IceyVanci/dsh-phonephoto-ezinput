@@ -7,9 +7,18 @@
 
 ## 界面
 
-手机端（扫码后）：
+手机端（扫码后，零安装）：
 
-![手机页](docs/phone-page.png)
+<p align="center">
+  <img src="docs/phone-sessions.jpg" width="46%" alt="手机上选择要投递的对话">
+  <img src="docs/phone-capture.jpg" width="46%" alt="手机上拍照或从相册选图">
+</p>
+
+左边是选题的：最近的对话排在最上面，其余按项目分组折叠；右边是拍图的：
+最多 4 张、单张 ≤ 10 MB、合计 ≤ 25 MB，发出前可以预览、删除、重拍。
+
+图片到了电脑上，以一条 **「发送自 192.168.1.23」** 的待发送消息挂在对话底部，
+旁边是缩略图；你补一句话发出去，它才跟着这一轮进上下文。
 
 ## 特性
 
@@ -17,8 +26,8 @@
 - **投递到指定对话**：手机上先选对话再拍，图片直接进入那个对话
 - **手机端预览确认**：拍完可看大图、删除、重拍，确认后才发送
 - **客户端压缩**：长边 2048 / JPEG 0.85 / 自动修正 EXIF 方向，一张约 300~400 KB
-- **五种投递模式**：写库不唤醒（默认）、直接写入、排队唤醒、插入当前回合
-- **设置面板**：二维码、访问链接、模式切换、设备管理、有效期
+- **不打断你干活**：图片挂成待发送消息，不自动跑模型；你回到电脑再决定要不要发
+- **设置面板**：二维码、访问链接、已配对设备与有效期
 - **安全默认**：仅私网、CSP nonce、magic bytes 校验、上传限速、IP 级授权
 
 ## 环境要求
@@ -47,10 +56,11 @@
 装好后在 **更多 → 设置 → 手机拍照** 里可以看到：
 
 - 二维码 + 局域网链接 + 6 位备用配对码（可直接复制）
-- 投递模式一键切换（立即生效，重启后保持配置文件里的值）
 - 已配对设备列表：IP、剩余天数、**逐条删除**、**全部撤销**
-- 配对**有效期**：1 / 3 / 7 / 30 天，落盘到 `~/.dsh/dsh-phonephoto-ezinput/settings.json`
-- 运行统计：监听端口、上传次数、UI 心跳
+- 配对**有效期**：1 / 3 / 7 / 30 天
+- 运行统计：监听端口、最近一次上传、UI 心跳
+
+设备与设置落在 `~/.dsh/phone-shoot/`（目录名沿用早期版本，改名会导致已配对手机全部失效）。
 
 ## 安装
 
@@ -78,7 +88,7 @@
 | POST | `/api/pending/ack` | 同上 | 确认消费 |
 | GET | `/api/mode` | 仅回环 | 查看/切换投递模式 |
 | GET | `/api/diagnostics` | 仅回环 | 计数器、设备、模式 |
-| GET/POST | `/dsh-phonephoto-ezinput/*` | 同源 | 给 DSH Web UI 的 client 半边用 |
+| GET/POST | `/phone-shoot/*` | 同源 | 给 DSH Web UI 的 client 半边用（内部前缀，沿用早期命名） |
 
 ## 配对与安全
 
@@ -94,13 +104,18 @@
 server:   { host: 0.0.0.0, port: 8788, portRetries: 10, privateOnly: true }
 pairing:  { ttlMs: 900000, persistDevices: true, pairMaxFailures: 5, deviceTtlMs: 604800000 }
 upload:   { maxFiles: 4, maxBytes: 10485760, maxTotalBytes: 26214400, targetMaxEdge: 2048, quality: 0.85, ratePerMinute: 12 }
-inject:   { mode: inbox, notePrefix: '[手机拍照]', sourceKind: user, pendingTtlMs: 600000 }
+inject:   { mode: inbox, noteTemplate: '发送自 {ip}', sourceKind: user, pendingTtlMs: 600000 }
 sessions: { recentWindowMs: 600000 }
 ```
 
+`inject.noteTemplate` 里的 `{ip}` 会替换成手机的实际地址，写成 `'发送自 {ip}'` 就是
+「发送自 192.168.1.23」；设成空串则不插入这行说明，只发图。
+
 ## 数据落点
 
-- 已配对设备：`$DSH_HOME/dsh-phonephoto-ezinput/devices.json`（只存 cookie secret 的 sha256 + IP + 到期时间）
+- 已配对设备：`$DSH_HOME/phone-shoot/devices.json`（只存 cookie secret 的 sha256 + IP + 到期时间）
+- 面板设置：`$DSH_HOME/phone-shoot/settings.json`
+- 运行日志：`$DSH_HOME/phone-shoot/phone-shoot.log`（超过 1 MB 轮转）
 - 不写临时文件；图片在内存中处理，投递后释放
 
 ## 已知限制

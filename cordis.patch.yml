@@ -19,7 +19,7 @@
           quality: 0.85
         inject:
           mode: inbox
-          notePrefix: '[手机拍照]'
+          noteTemplate: '发送自 {ip}'
           sourceKind: user
         sessions:
           recentWindowMs: 600000
