@@ -121,6 +121,30 @@ sessions: { recentWindowMs: 600000 }
 - 运行日志：`$DSH_HOME/phone-shoot/phone-shoot.log`（超过 1 MB 轮转）
 - 不写临时文件；图片在内存中处理，投递后释放
 
+## 排障
+
+**症状：DSH 起不来，浏览器/日志里是 `web boot: 1 entry did not activate`**
+
+```
+Error: web boot: 1 entry did not activate
+dsh-phonephoto-ezinput: import failed (see console for the import error)
+
+client-modules: duplicate factory registration for "…" (bundle executed twice without invalidate?)
+```
+
+意思是浏览器半边的 bundle 在同一页面里被执行了两次：常见于**同一个插件装了两份**
+（`link:` 联接 + 一份实体目录并存），或**启动那一刻插件文件正在被改写**。
+
+处理：
+
+1. 看 `~/.dsh/profiles/<profile>/node_modules`，同名的插件目录只能有一份；
+2. `package.json` 的 `dependencies` 和 `dsh.profile.bundles` 里各出现一次，别一边 `link:` 一边又复制实体目录；
+3. 删掉多余的那份，重启应用。
+
+本插件的 client bundle 带自锁：被重复执行时只打一条 `executed twice, skipped re-registration`
+警告，不再重复注册——因此不会再拖垮启动。但重复安装仍会让 host 半边起两个服务抢 8788，
+该清的还是要清。
+
 ## 已知限制
 
 1. **`draft` 模式（输入框草稿）不可用**：`conversation.createDrafts()` 只登记字节，真正渲染缩略图的是输入框组件内部的 `addFiles()`，未暴露给插件。代码保留，等上游开放 API。
