@@ -23,6 +23,9 @@
 
 ### 安全
 
+- **草稿队列鉴权**：`/api/pending`、`/api/pending/ack` 现在只允许回环或已配对设备访问；
+  之前任何人只要能连到端口就能读到未发送的原图。
+
 - 仅私网来源；管理类接口与二维码页仅回环。
 - 页面 CSP（nonce，无 `unsafe-inline`）、`no-referrer`、`no-store`、`nosniff`。
 - 上传按 magic bytes 复核，限速 12 次/分钟/IP；图片仅内存处理。
