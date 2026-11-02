@@ -32,6 +32,13 @@
   现在明确报错提示换一张。
 - 清掉 client.js 里重复定义的 ageText（早前替换留下的残骸）。
 
+### 修复（第三轮）
+
+- **插件重载后同源路由失联**：`/phone-shoot/*` 只在进程里注册一次，插件被重载后旧 handler
+  仍指向已销毁的实例——心跳计数、草稿队列全部写进“僵尸”对象（表现为面板一直显示
+  `clientPolls: 0`、重载后报 duplicate exact route）。现在路由只注册一次，统一转发到当前实例。
+- `/phone-shoot/status` 去掉从未被使用的 `modeSwitchable` 字段。
+
 ### 安全
 
 - **草稿队列鉴权**：`/api/pending`、`/api/pending/ack` 现在只允许回环或已配对设备访问；
