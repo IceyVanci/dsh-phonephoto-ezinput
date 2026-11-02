@@ -1,0 +1,25 @@
+- insert:
+    - id: dsh-phonephoto-ezinput
+      name: 'dsh-phonephoto-ezinput'
+      config:
+        server:
+          host: 0.0.0.0
+          port: 8788
+          privateOnly: true
+        pairing:
+          ttlMs: 900000
+          persistDevices: true
+          pairMaxFailures: 5
+          deviceTtlMs: 604800000
+        upload:
+          maxFiles: 4
+          maxBytes: 10485760
+          maxTotalBytes: 26214400
+          targetMaxEdge: 2048
+          quality: 0.85
+        inject:
+          mode: inbox
+          notePrefix: '[手机拍照]'
+          sourceKind: user
+        sessions:
+          recentWindowMs: 600000

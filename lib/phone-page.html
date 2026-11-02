@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>手机拍照</title>
+<style nonce="__NONCE__">
+  :root { color-scheme: light dark; --bg:#fafafa; --fg:#111; --muted:#6b7280; --card:#fff; --line:#e5e7eb; --accent:#2563eb; --danger:#b91c1c; --ok:#15803d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b0b0c; --fg:#f2f2f2; --muted:#9ca3af; --card:#151517; --line:#2a2a2e; --accent:#60a5fa; --danger:#f87171; --ok:#4ade80; } }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; background: var(--bg); color: var(--fg); }
+  body { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; padding-bottom: env(safe-area-inset-bottom); }
+  main { max-width: 620px; margin: 0 auto; padding: 16px 16px 40px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 6px 2px 14px; }
+  h1 { font-size: 20px; margin: 0; font-weight: 650; }
+  .pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; border:1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+  .pill.bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+  .muted { color: var(--muted); font-size: 13px; margin: 6px 0; }
+  .row { display:flex; gap:10px; align-items:center; }
+  .row.wrap { flex-wrap: wrap; }
+  button { font: inherit; font-size: 15px; padding: 11px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+  button:active { transform: scale(0.985); }
+  button:disabled { opacity: .45; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:disabled { background: var(--accent); }
+  button.ghost { background: transparent; }
+  .big { width: 100%; aspect-ratio: 3 / 4; background: #000; border-radius: 12px; overflow: hidden; display:flex; align-items:center; justify-content:center; }
+  .big img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .strip { display:flex; gap:8px; overflow-x:auto; padding: 10px 0 4px; }
+  .thumb { position: relative; flex: 0 0 auto; width: 64px; height: 64px; border-radius: 10px; overflow: hidden; border: 2px solid transparent; background:#000; }
+  .thumb.active { border-color: var(--accent); }
+  .thumb img { width:100%; height:100%; object-fit: cover; }
+  .thumb .x { position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; background: var(--danger); color:#fff; font-size:14px; line-height:22px; text-align:center; border:2px solid var(--card); }
+  .spacer { flex: 1; }
+  .err { color: var(--danger); }
+  .ok { color: var(--ok); }
+  .hidden { display: none !important; }
+  .list { display:flex; flex-direction:column; gap:8px; }
+  .item { display:flex; align-items:center; gap:10px; padding:12px; border:1px solid var(--line); border-radius:12px; background: var(--card); }
+  .item:active { opacity: .7; }
+  .item .t { flex:1; min-width:0; }
+  .item .name { font-weight: 600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item .sub { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .badge { font-size:11px; padding:2px 8px; border-radius:999px; background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); white-space:nowrap; }
+  details > summary { cursor:pointer; padding:12px 2px 6px; color:var(--muted); font-size:14px; }
+  .group-title { font-size:12px; color:var(--muted); margin:12px 2px 6px; }
+  .progress { display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .progress .track { flex:1; height:6px; background: rgba(127,127,127,.25); border-radius:3px; overflow:hidden; }
+  .progress .bar { height:100%; width:0%; background: var(--accent); transition: width .15s linear; }
+  .progress .pct { font-size:12px; color: var(--muted); min-width: 34px; text-align:right; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: rgba(20,20,22,.92); color:#fff; padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: 88vw; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>手机拍照</h1>
+    <span id="status" class="pill">就绪</span>
+  </header>
+
+  <section class="card" id="picker">
+    <p class="muted" id="picker-hint">正在读取对话列表…</p>
+    <div class="list" id="recent-list"></div>
+    <details id="others" hidden>
+      <summary id="others-summary">其他会话</summary>
+      <div class="list" id="groups"></div>
+    </details>
+  </section>
+
+  <section class="card hidden" id="target">
+    <div class="row">
+      <div class="t" style="flex:1;min-width:0">
+        <div class="sub">投递到</div>
+        <div class="name" id="target-name"></div>
+      </div>
+      <button id="btn-change" class="ghost">更换</button>
+    </div>
+  </section>
+
+  <section class="card hidden" id="pick">
+    <p class="muted" id="hint">拍照或从相册选图，确认后再发送。</p>
+    <div class="row wrap">
+      <button id="btn-camera" class="primary">拍照</button>
+      <button id="btn-album">从相册选</button>
+    </div>
+    <input id="file-camera" type="file" accept="image/*" capture="environment" hidden>
+    <input id="file-album" type="file" accept="image/*" multiple hidden>
+    <p class="muted" id="limits"></p>
+  </section>
+
+  <section class="card hidden" id="preview">
+    <div class="big"><img id="big" alt="预览"></div>
+    <div class="strip" id="strip"></div>
+    <p class="muted" id="meta"></p>
+    <div class="progress hidden" id="progress"><div class="track"><div class="bar" id="bar"></div></div><span class="pct" id="pct">0%</span></div>
+    <div class="row wrap">
+      <button id="btn-retake" class="ghost">重拍</button>
+      <button id="btn-more" class="ghost">＋ 再加一张</button>
+      <span class="spacer"></span>
+      <button id="btn-cancel" class="ghost hidden">取消</button>
+      <button id="btn-send" class="primary">发送</button>
+    </div>
+  </section>
+
+  <section class="card hidden" id="result">
+    <p id="result-text"></p>
+    <div class="row"><button id="btn-again" class="ghost">再来一张</button></div>
+  </section>
+</main>
+<script nonce="__NONCE__">
+(function () {
+  "use strict";
+  var MAX_FILES = __MAX_FILES__;
+  var MAX_BYTES = __MAX_BYTES__;
+  var MAX_TOTAL = __MAX_TOTAL__;
+  var MAX_EDGE = __MAX_EDGE__;
+  var QUALITY = __QUALITY__;
+
+  var state = { items: [], active: 0, busy: false };
+  var $ = function (id) { return document.getElementById(id); };
+  var statusEl = $("status");
+
+  function setStatus(text, kind) {
+    statusEl.textContent = text;
+    statusEl.className = "pill" + (kind ? " " + kind : "");
+  }
+  function toast(text) {
+    var el = document.createElement("div");
+    el.className = "toast";
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(function () { el.remove(); }, 2600);
+  }
+  function fmtBytes(n) {
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " KB";
+    return (n / 1048576).toFixed(1) + " MB";
+  }
+
+  $("limits").textContent = "最多 " + MAX_FILES + " 张 · 单张 ≤ " + fmtBytes(MAX_BYTES) + " · 合计 ≤ " + fmtBytes(MAX_TOTAL) + " · 长边压到 " + MAX_EDGE + "px";
+
+  // ---------- 对话选择 ----------
+  var LAST_KEY = "dsh-phonephoto-ezinput:last-session";
+  var sessionsData = null;
+  var selected = null;
+
+  function relTime(ts) {
+    var d = Date.now() - ts;
+    if (d < 60000) return "刚刚";
+    if (d < 3600000) return Math.floor(d / 60000) + " 分钟前";
+    if (d < 86400000) return Math.floor(d / 3600000) + " 小时前";
+    return Math.floor(d / 86400000) + " 天前";
+  }
+
+  function rowEl(row) {
+    var el = document.createElement("div");
+    el.className = "item";
+    var t = document.createElement("div");
+    t.className = "t";
+    var name = document.createElement("div");
+    name.className = "name";
+    name.textContent = row.title || "未命名会话";
+    var sub = document.createElement("div");
+    sub.className = "sub";
+    sub.textContent = (row.workspace ? row.workspace + " · " : "") + relTime(row.activity || 0);
+    t.appendChild(name);
+    t.appendChild(sub);
+    el.appendChild(t);
+    if (row.running) {
+      var badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "运行中";
+      el.appendChild(badge);
+    }
+    el.onclick = function () { choose(row); };
+    return el;
+  }
+
+  function renderPicker() {
+    var recent = (sessionsData && sessionsData.recent) || [];
+    var groups = (sessionsData && sessionsData.groups) || [];
+    var list = $("recent-list");
+    var total = groups.reduce(function (s, g) { return s + g.sessions.length; }, 0);
+    list.textContent = "";
+    $("picker-hint").textContent = recent.length ? "选择要投递的对话" : (total ? "最近没有活动的对话，从下面选一个" : "还没有任何对话，请先在电脑上新建一个");
+    recent.forEach(function (row) { list.appendChild(rowEl(row)); });
+    var others = $("others");
+    if (total) {
+      others.hidden = false;
+      $("others-summary").textContent = "其他会话 (" + total + ")";
+      var box = $("groups");
+      box.textContent = "";
+      groups.forEach(function (g) {
+        var head = document.createElement("div");
+        head.className = "group-title";
+        head.textContent = g.title + (g.missing ? " ⚠️" : "");
+        if (g.path) head.title = g.path;
+        box.appendChild(head);
+        g.sessions.forEach(function (row) { box.appendChild(rowEl(row)); });
+      });
+      if (!recent.length) others.open = true;
+    } else {
+      others.hidden = true;
+    }
+  }
+
+  function choose(row) {
+    selected = { sessionId: row.sessionId, title: row.title || "未命名会话" };
+    try { localStorage.setItem(LAST_KEY, JSON.stringify(selected)); } catch (e) {}
+    showWork();
+  }
+
+  function restoreSelection() {
+    try {
+      var raw = localStorage.getItem(LAST_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (saved && saved.sessionId) selected = saved;
+    } catch (e) {}
+  }
+
+  function showPicker() {
+    $("picker").classList.remove("hidden");
+    $("target").classList.add("hidden");
+    $("pick").classList.add("hidden");
+    $("preview").classList.add("hidden");
+    $("result").classList.add("hidden");
+    setStatus("就绪");
+  }
+
+  function showWork() {
+    $("picker").classList.add("hidden");
+    if ($("picker").removeAttribute) $("picker").removeAttribute("hidden");
+    $("target").classList.remove("hidden");
+    $("target-name").textContent = selected ? selected.title : "未选择";
+    $("pick").classList.remove("hidden");
+    $("result").classList.add("hidden");
+    render();
+    setStatus("就绪", "ok");
+  }
+
+  function loadSessions() {
+    return fetch("/api/sessions")
+      .then(function (r) { return r.json(); })
+      .then(function (data) { sessionsData = data; renderPicker(); return data; })
+      .catch(function (e) {
+        sessionsData = { recent: [], groups: [], total: 0 };
+        renderPicker();
+        $("picker-hint").textContent = "读取对话列表失败：" + e.message;
+      });
+  }
+
+  // ---------- EXIF 方向 ----------
+  function readOrientation(file) {
+    return file.slice(0, 131072).arrayBuffer().then(function (buf) {
+      var view = new DataView(buf);
+      if (view.getUint16(0, false) !== 0xFFD8) return 1;
+      var offset = 2;
+      while (offset + 4 < view.byteLength) {
+        if (view.getUint16(offset, false) !== 0xFFE1) {
+          var len = view.getUint16(offset + 2, false);
+          if (len < 2) break;
+          offset += 2 + len;
+          continue;
+        }
+        var tiff = offset + 10;
+        if (view.getUint32(tiff, false) !== 0x49492A00) return 1;
+        var dir = tiff + view.getUint32(tiff + 4, true);
+        var count = view.getUint16(dir, true);
+        for (var i = 0; i < count; i++) {
+          var entry = dir + 2 + i * 12;
+          if (view.getUint16(entry, true) === 0x0112) return view.getUint16(entry + 8, true);
+        }
+        return 1;
+      }
+      return 1;
+    }).catch(function () { return 1; });
+  }
+
+  function loadImage(file) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function () { resolve({ img: img, url: url }); };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("无法读取这张图片")); };
+      img.src = url;
+    });
+  }
+
+  function drawOriented(img, orientation, w, h) {
+    var canvas = document.createElement("canvas");
+    var swap = orientation >= 5 && orientation <= 8;
+    canvas.width = swap ? h : w;
+    canvas.height = swap ? w : h;
+    var ctx = canvas.getContext("2d");
+    switch (orientation) {
+      case 2: ctx.transform(-1, 0, 0, 1, w, 0); break;
+      case 3: ctx.transform(-1, 0, 0, -1, w, h); break;
+      case 4: ctx.transform(1, 0, 0, -1, 0, h); break;
+      case 5: ctx.transform(0, 1, 1, 0, 0, 0); break;
+      case 6: ctx.transform(0, 1, -1, 0, h, 0); break;
+      case 7: ctx.transform(0, -1, -1, 0, h, w); break;
+      case 8: ctx.transform(0, -1, 1, 0, 0, w); break;
+      default: break;
+    }
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas;
+  }
+
+  function compress(file) {
+    return readOrientation(file).then(function (orientation) {
+      return loadImage(file).then(function (loaded) {
+        var img = loaded.img;
+        var w = img.naturalWidth || img.width;
+        var h = img.naturalHeight || img.height;
+        var oriented = drawOriented(img, orientation, w, h);
+        URL.revokeObjectURL(loaded.url);
+        var scale = Math.min(1, MAX_EDGE / Math.max(oriented.width, oriented.height));
+        var cw = Math.max(1, Math.round(oriented.width * scale));
+        var ch = Math.max(1, Math.round(oriented.height * scale));
+        var out = document.createElement("canvas");
+        out.width = cw;
+        out.height = ch;
+        out.getContext("2d").drawImage(oriented, 0, 0, cw, ch);
+        return new Promise(function (resolve) {
+          out.toBlob(function (blob) {
+            resolve({ blob: blob, width: cw, height: ch, bytes: blob ? blob.size : 0, name: "photo-" + Date.now() + ".jpg" });
+          }, "image/jpeg", QUALITY);
+        });
+      });
+    });
+  }
+
+  // ---------- 选图 ----------
+  function addFiles(fileList) {
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return;
+    var room = MAX_FILES - state.items.length;
+    if (room <= 0) { toast("最多 " + MAX_FILES + " 张"); return; }
+    if (files.length > room) { toast("只能再加 " + room + " 张，已忽略多余"); files = files.slice(0, room); }
+    var accepted = [];
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      if (!/^image\//.test(f.type)) { toast("只支持图片"); continue; }
+      if (f.size > MAX_BYTES) { toast("这张太大（" + fmtBytes(f.size) + "），上限 " + fmtBytes(MAX_BYTES)); continue; }
+      accepted.push(f);
+    }
+    if (!accepted.length) return;
+    setStatus("处理中…");
+    var chain = Promise.resolve();
+    accepted.forEach(function (f) {
+      chain = chain.then(function () { return compress(f); }).then(function (item) {
+        var total = state.items.reduce(function (s, x) { return s + x.bytes; }, 0);
+        if (total + item.bytes > MAX_TOTAL) { toast("合计超过 " + fmtBytes(MAX_TOTAL)); return; }
+        state.items.push(item);
+        state.active = state.items.length - 1;
+        render();
+      }).catch(function (e) { toast(e.message || "处理失败"); });
+    });
+    chain.then(function () { setStatus("就绪", "ok"); });
+  }
+
+  // ---------- 渲染 ----------
+  function render() {
+    var has = state.items.length > 0;
+    $("pick").classList.toggle("hidden", has);
+    $("preview").classList.toggle("hidden", !has);
+    if (!has) { $("result").classList.add("hidden"); return; }
+    var cur = state.items[state.active] || state.items[0];
+    var big = $("big");
+    if (big.dataset.url !== String(state.active)) {
+      if (big.dataset.objectUrl) URL.revokeObjectURL(big.dataset.objectUrl);
+      var url = URL.createObjectURL(cur.blob);
+      big.src = url;
+      big.dataset.objectUrl = url;
+      big.dataset.url = String(state.active);
+    }
+    var strip = $("strip");
+    strip.textContent = "";
+    state.items.forEach(function (item, idx) {
+      var d = document.createElement("div");
+      d.className = "thumb" + (idx === state.active ? " active" : "");
+      var im = document.createElement("img");
+      im.src = URL.createObjectURL(item.blob);
+      im.onload = function () { URL.revokeObjectURL(im.src); };
+      d.appendChild(im);
+      if (state.items.length > 1) {
+        var x = document.createElement("div");
+        x.className = "x";
+        x.textContent = "×";
+        x.onclick = function (ev) { ev.stopPropagation(); removeAt(idx); };
+        d.appendChild(x);
+      }
+      d.onclick = function () { state.active = idx; render(); };
+      strip.appendChild(d);
+    });
+    var total = state.items.reduce(function (s, x) { return s + x.bytes; }, 0);
+    $("meta").textContent = "第 " + (state.active + 1) + "/" + state.items.length + " 张 · " + cur.width + "×" + cur.height + " · 合计 " + fmtBytes(total);
+    $("btn-send").disabled = state.busy;
+  }
+
+  function removeAt(idx) {
+    state.items.splice(idx, 1);
+    if (state.active >= state.items.length) state.active = Math.max(0, state.items.length - 1);
+    render();
+  }
+
+  // ---------- 发送 ----------
+  var ERR_TEXT = {
+    "bad-token": "配对失效，请重新扫码",
+    "expired-token": "配对已过期，请重新扫码",
+    "session-closed": "该对话已关闭，请换一个目标",
+    "too-many-files": "图片张数超过上限",
+    "file-too-large": "图片太大，超过单张或合计上限",
+    "unsupported-type": "不支持的图片格式（仅 JPEG/PNG/WebP）",
+    "rate-limited": "操作太频繁，请等一分钟再试",
+    "attachment-failed": "图片入库失败，请重试",
+    "delivery-failed": "投递失败，请重试",
+    "forbidden-network": "只能在同一局域网内使用",
+    "bad-request": "请求无效，请刷新页面重试"
+  };
+  var currentXhr = null;
+
+  function showProgress(pct) {
+    var box = $("progress");
+    if (!box) return;
+    box.classList.remove("hidden");
+    $("bar").style.width = pct + "%";
+    $("pct").textContent = pct + "%";
+  }
+
+  function hideProgress() {
+    var box = $("progress");
+    if (!box) return;
+    box.classList.add("hidden");
+    $("bar").style.width = "0%";
+    $("pct").textContent = "0%";
+  }
+
+  function finishSend() {
+    state.busy = false;
+    hideProgress();
+    $("btn-cancel").classList.add("hidden");
+    $("btn-send").disabled = false;
+    $("btn-send").textContent = "发送";
+  }
+
+  function cancelSend() {
+    if (!currentXhr) return;
+    try { currentXhr.abort(); } catch (e) {}
+  }
+
+  function send() {
+    if (!state.items.length || state.busy) return;
+    if (!selected) { showResult(false, "请先选择一个对话"); showPicker(); return; }
+    state.busy = true;
+    $("btn-send").disabled = true;
+    $("btn-send").textContent = "发送中…";
+    $("btn-cancel").classList.remove("hidden");
+    setStatus("上传中…");
+    showProgress(0);
+
+    var fd = new FormData();
+    fd.append("sessionId", selected.sessionId);
+    state.items.forEach(function (item, i) { fd.append("files", item.blob, "photo-" + (i + 1) + ".jpg"); });
+
+    var xhr = new XMLHttpRequest();
+    currentXhr = xhr;
+    xhr.open("POST", "/api/upload");
+    xhr.upload.onprogress = function (e) {
+      if (e.lengthComputable && e.total > 0) showProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = function () {
+      currentXhr = null;
+      finishSend();
+      var body = null;
+      try { body = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 200 && body && body.ok) {
+        var target = selected ? selected.title : "所选对话";
+        if (body.mode === "draft") {
+          showResult(true, "已放进「" + target + "」的输入框草稿（" + body.received + " 张，" + fmtBytes(body.totalBytes) + "）。回到电脑补充文字后发送。");
+        } else {
+          showResult(true, "已投递 " + body.received + " 张（" + fmtBytes(body.totalBytes) + "）到「" + target + "」" + (body.resumed ? "，该对话已重新打开" : ""));
+        }
+        state.items = [];
+        state.active = 0;
+        $("preview").classList.add("hidden");
+        $("pick").classList.remove("hidden");
+        setStatus("就绪", "ok");
+        return;
+      }
+      var code = body && body.code;
+      var msg = ERR_TEXT[code] || (body && body.message) || ("HTTP " + xhr.status);
+      if (code === "session-closed") setTimeout(showPicker, 1200);
+      showResult(false, "发送失败：" + msg);
+      setStatus("失败", "bad");
+    };
+    xhr.onerror = function () {
+      currentXhr = null;
+      finishSend();
+      showResult(false, "网络中断：请确认手机与电脑在同一 Wi-Fi，然后重试");
+      setStatus("失败", "bad");
+    };
+    xhr.onabort = function () {
+      currentXhr = null;
+      finishSend();
+      showResult(false, "已取消上传");
+      setStatus("就绪");
+    };
+    xhr.send(fd);
+  }
+
+  function showResult(ok, text) {
+    $("result").classList.remove("hidden");
+    var el = $("result-text");
+    el.className = ok ? "ok" : "err";
+    el.textContent = text;
+  }
+
+  // ---------- 事件 ----------
+  $("btn-camera").onclick = function () { $("file-camera").click(); };
+  $("btn-album").onclick = function () { $("file-album").click(); };
+  $("btn-more").onclick = function () { $("file-camera").click(); };
+  $("btn-retake").onclick = function () { state.items = []; state.active = 0; render(); };
+  $("btn-send").onclick = send;
+  $("btn-cancel").onclick = cancelSend;
+  $("btn-again").onclick = function () { $("result").classList.add("hidden"); $("pick").classList.remove("hidden"); };
+  $("file-camera").onchange = function (e) { addFiles(e.target.files); e.target.value = ""; };
+  $("file-album").onchange = function (e) { addFiles(e.target.files); e.target.value = ""; };
+
+  $("btn-change").onclick = showPicker;
+
+  restoreSelection();
+  renderPicker();
+  loadSessions().then(function () {
+    if (selected) showWork(); else showPicker();
+  });
+})();
+</script>
+</body>
+</html>
