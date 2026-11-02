@@ -60,6 +60,9 @@
 - 配对**有效期**：1 / 3 / 7 / 30 天
 - 运行统计：监听端口、最近一次上传、UI 心跳
 
+面板的数据走**同源路由** `/phone-shoot/*`（不跨端口），因此不受 DSH 页面 CSP 的
+`connect-src` 限制；同源不可用时才回退去探测 `8788-8797`。
+
 设备与设置落在 `~/.dsh/phone-shoot/`（目录名沿用早期版本，改名会导致已配对手机全部失效）。
 
 ## 安装
@@ -91,7 +94,16 @@
 | POST | `/api/pending/ack` | 同上 | 确认消费 |
 | GET | `/api/mode` | 仅回环 | 查看/切换投递模式 |
 | GET | `/api/diagnostics` | 仅回环 | 计数器、设备、模式 |
-| GET/POST | `/phone-shoot/*` | 同源 | 给 DSH Web UI 的 client 半边用（内部前缀，沿用早期命名） |
+| GET | `/phone-shoot/status` | 同源 | 面板数据（与 `/api/panel` 同结构） |
+| GET | `/phone-shoot/pending` | 同源 | 草稿队列（client 半边轮询用） |
+| POST | `/phone-shoot/ack` | 同源 | 确认消费草稿 |
+| POST | `/phone-shoot/client-alive` | 同源 | UI 心跳（计 `clientPolls`） |
+| GET | `/phone-shoot/ttl?days=` | 同源 | 设置配对有效期 |
+| GET | `/phone-shoot/revoke?ip=` | 同源 | 删除设备（`ip=all` 全部撤销） |
+| GET | `/phone-shoot/mode?value=` | 同源 | 运行时切换投递模式 |
+
+> `/phone-shoot/*` 是挂在 DSH Web UI 上的同源路由，前缀沿用早期命名；插件停用后它们会返回
+> `503 plugin-offline`。
 
 ## 配对与安全
 
@@ -145,11 +157,26 @@ client-modules: duplicate factory registration for "…" (bundle executed twice 
 警告，不再重复注册——因此不会再拖垮启动。但重复安装仍会让 host 半边起两个服务抢 8788，
 该清的还是要清。
 
+**症状：设置面板显示「读取状态失败：Failed to fetch」**
+
+通常不是服务挂了。先用浏览器打开 `http://127.0.0.1:8788/api/health`：
+
+- 打不开 → 服务没起来：看 `~/.dsh/phone-shoot/phone-shoot.log`，多半是端口被占或插件没启用；
+- 能打开但面板仍报错 → **跨端口请求被页面策略拦了**。插件已改为优先走同源路由，
+  出现这种情况说明页面里跑的还是旧版 client bundle，重启应用即可。
+
+**症状：面板底部「UI 心跳」一直是 0，或端口一会儿 8788 一会儿 8790**
+
+- 心跳为 0：client 半边没连上（旧 bundle，或插件被重载后路由指向旧实例）；
+- 端口漂移：应用重启瞬间旧进程还没释放套接字。现在会先在原端口重试 5 次（每次 200ms），
+  真被别的程序占用才 +1。
+
 ## 已知限制
 
 1. **`draft` 模式（输入框草稿）不可用**：`conversation.createDrafts()` 只登记字节，真正渲染缩略图的是输入框组件内部的 `addFiles()`，未暴露给插件。代码保留，等上游开放 API。
-2. **client 半边要求真实目录安装**：`link:` 联接形态下不加载（心跳为 0 即可判定）。
-3. 服务端端口被占用时自动 +1，最多试 10 次；client 会从 8788 起探测。
+2. **更新要走完整重启**：client 半边在应用启动时构建，只开关插件只重载 host 半边。
+   （`link:` 联接本身能跑，但重装流程容易留下两份来源，见上面「DSH 起不来」那节。）
+3. 服务端端口被占用时先在原端口重试，仍失败才 +1，最多试 10 次；client 会从 8788 起探测。
 4. 设备按 IP 识别：同一 NAT 后的多台设备会合并成一条。
 5. 草稿队列是内存态，重启即丢。
 
