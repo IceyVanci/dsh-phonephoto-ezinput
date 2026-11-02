@@ -325,9 +325,10 @@
         out.width = cw;
         out.height = ch;
         out.getContext("2d").drawImage(oriented, 0, 0, cw, ch);
-        return new Promise(function (resolve) {
+        return new Promise(function (resolve, reject) {
           out.toBlob(function (blob) {
-            resolve({ blob: blob, width: cw, height: ch, bytes: blob ? blob.size : 0, name: "photo-" + Date.now() + ".jpg" });
+            if (!blob) { reject(new Error("这张图太大，浏览器处理不了，换一张试试")); return; }
+            resolve({ blob: blob, width: cw, height: ch, bytes: blob.size, name: "photo-" + Date.now() + ".jpg" });
           }, "image/jpeg", QUALITY);
         });
       });
