@@ -107,7 +107,7 @@
 
   <section class="card hidden" id="result">
     <p id="result-text"></p>
-    <div class="row"><button id="btn-again" class="ghost">再来一张</button></div>
+    <div class="row"><button id="btn-retry" class="ghost hidden">重试</button><button id="btn-again" class="ghost">再来一张</button></div>
   </section>
 </main>
 <script nonce="__NONCE__">
@@ -143,7 +143,7 @@
   $("limits").textContent = "最多 " + MAX_FILES + " 张 · 单张 ≤ " + fmtBytes(MAX_BYTES) + " · 合计 ≤ " + fmtBytes(MAX_TOTAL) + " · 长边压到 " + MAX_EDGE + "px";
 
   // ---------- 对话选择 ----------
-  var LAST_KEY = "dsh-phonephoto-ezinput:last-session";
+  var LAST_KEY = "phone-shoot:last-session";
   var sessionsData = null;
   var selected = null;
 
@@ -403,6 +403,7 @@
   }
 
   function removeAt(idx) {
+    if (!confirm("删除这张图？")) return;
     state.items.splice(idx, 1);
     if (state.active >= state.items.length) state.active = Math.max(0, state.items.length - 1);
     render();
@@ -515,6 +516,7 @@
 
   function showResult(ok, text) {
     $("result").classList.remove("hidden");
+    $("btn-retry").classList.toggle("hidden", ok);
     var el = $("result-text");
     el.className = ok ? "ok" : "err";
     el.textContent = text;
@@ -527,6 +529,7 @@
   $("btn-retake").onclick = function () { state.items = []; state.active = 0; render(); };
   $("btn-send").onclick = send;
   $("btn-cancel").onclick = cancelSend;
+  $("btn-retry").onclick = function () { $("result").classList.add("hidden"); send(); };
   $("btn-again").onclick = function () { $("result").classList.add("hidden"); $("pick").classList.remove("hidden"); };
   $("file-camera").onchange = function (e) { addFiles(e.target.files); e.target.value = ""; };
   $("file-album").onchange = function (e) { addFiles(e.target.files); e.target.value = ""; };
