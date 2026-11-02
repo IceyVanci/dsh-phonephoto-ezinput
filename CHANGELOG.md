@@ -39,6 +39,14 @@
   `clientPolls: 0`、重载后报 duplicate exact route）。现在路由只注册一次，统一转发到当前实例。
 - `/phone-shoot/status` 去掉从未被使用的 `modeSwitchable` 字段。
 
+### 修复（第四轮）
+
+- **面板不再依赖跨端口请求**：设置面板原先直连 `http://127.0.0.1:8788/api/panel`，在 DSH 的页面
+  CSP / 私有网络策略下会被拦成 `Failed to fetch`（浏览器直接打开该地址却正常，因为导航不受
+  `connect-src` 限制）。现在面板**优先走同源路由** `/phone-shoot/status`，失败才回退到直连端口。
+- 新增同源路由 `/phone-shoot/ttl`、`/phone-shoot/revoke`，配对有效期与设备删除也能同源完成。
+- `/phone-shoot/status` 补齐 `deviceTtlDays`、`lastUpload` 字段，与 `/api/panel` 返回结构一致。
+
 ### 安全
 
 - **草稿队列鉴权**：`/api/pending`、`/api/pending/ack` 现在只允许回环或已配对设备访问；
